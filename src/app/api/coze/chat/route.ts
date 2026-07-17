@@ -1,4 +1,4 @@
-// /api/coze/chat - 统一对话 API（意图识别 + 路由）
+﻿// /api/coze/chat - 统一对话 API（意图识别 + 路由）
 import { NextRequest, NextResponse } from "next/server";
 import { matchExperts } from "@/lib/expert-match";
 
@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
     const intent = identifyIntentFromKeywords(trimmed);
+    console.log("[CHAT] intent:", intent, "question:", trimmed.substring(0, 50));
     if (intent === "expert_match") {
       const result = await routeToExpertMatch(trimmed);
       return NextResponse.json(result);
@@ -41,6 +42,7 @@ async function routeToExpertMatch(question) {
   console.log("[DEBUG] routeToExpertMatch called with:", question.substring(0, 100));
   try {
     const result = await matchExperts(question);
+    console.log("[CHAT] expert match result:", JSON.stringify(result).substring(0, 500));
     console.log("[DEBUG] expert match result:", JSON.stringify(result).substring(0, 300));
     return result;
   } catch (e) {
@@ -92,7 +94,7 @@ async function routeToCodeQuery(question) {
   }
 
   const detail = await parseCodeRules(rawOutput);
-  return { success: true, type: "code_query", data: rawOutput, detail: detail || null };
+  return { success: true, type: "code_query", data: rawOutput, detail: detail || null, askFollowUp: true };
 }
 
 async function parseCodeRules(text) {
@@ -118,3 +120,4 @@ async function parseCodeRules(text) {
     return null;
   } catch (e) { return null; }
 }
+
