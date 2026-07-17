@@ -1,0 +1,126 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { extractTextFromDocx, isDocxFile } from "@/lib/docx-parser";
+import { extractProjectInfo } from "@/lib/deepseek";
+
+export async function POST(request: NextRequest) {
+  try {
+    const cookieStore = cookies();
+    const cookiesToSet: { name: string; value: string; options: any }[] = [];
+    const headersToSet: Record<string, string> = {};
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookies, headers) {
+            cookiesToSet.push(...cookies);
+            Object.assign(headersToSet, headers);
+          },
+        },
+      }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "未登录" },
+        { status: 401 }
+      );
+    }
+
+    const formData = await request.formData();
+    const name = formData.get("name") as string;
+    const file = formData.get("file") as File | null;
+
+    if (!name?.trim()) {
+      return NextResponse.json(
+        { success: false, error: "项目名称不能为空" },
+        { status: 400 }
+      );
+    }
+
+    const { data: project, error: projectError } = await supabaseAdmin
+      .from("projects")
+      .insert({
+        name: name.trim(),
+        user_id: user.id,
+        status: "active",
+      })
+      .select("id")
+      .single();
+
+    if (projectError || !project) {
+      return NextResponse.json(
+        { success: false, error: projectError?.message || "创建项目失败" },
+        { status: 500 }
+      );
+    }
+
+    if (file) {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      const { error: fileError } = await supabaseAdmin.from("project_files").insert({
+        project_id: project.id,
+        name: file.name,
+        file_path: "pending",
+        file_type: file.type,
+      });
+
+      if (fileError) {
+        console.error("保存文件元数据失败", fileError);
+      }
+
+      // 仅对 DOCX 文件调用 DeepSeek 提取项目信息
+      if (isDocxFile(file.name)) {
+        try {
+          const text = await extractTextFromDocx(buffer);
+          const extracted = await extractProjectInfo(text);
+
+          const { error: updateError } = await supabaseAdmin
+            .from("projects")
+            .update({
+              project_info: extracted,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", project.id);
+
+          if (updateError) {
+            console.error("更新 project_info 失败", updateError);
+          }
+        } catch (extractionError) {
+          console.error("DeepSeek 提取失败", extractionError);
+          // 提取失败不影响项目创建，继续返回成功
+        }
+      }
+    }
+
+    const response = NextResponse.json({
+      success: true,
+      data: { project_id: project.id },
+    });
+    cookiesToSet.forEach(({ name, value, options }) => {
+      response.cookies.set(name, value, options);
+    });
+    Object.entries(headersToSet).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    return response;
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || "服务器错误" },
+      { status: 500 }
+    );
+  }
+}
+

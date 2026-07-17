@@ -1,0 +1,673 @@
+﻿// @ts-nocheck
+"use client";
+
+import { Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, CloudUpload, X, MessageSquare, BookOpen, Users, Send } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
+
+type Project = {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  project_info: any | null;
+};
+
+const tabs = [
+  { key: "knowledge", label: "鐭ヨ瘑闂瓟" },
+  { key: "review", label: "瀹″浘瑙勫垝" },
+  { key: "report", label: "鎶ュ憡鐢熸垚" },
+  { key: "compare", label: "鎶ュ憡瀵规瘮" },
+  { key: "issues", label: "闂杩借釜" },
+];
+
+function ProjectsPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const projectId = searchParams.get("id");
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabParam || "review");
+  const [project, setProject] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!projectId) { setLoading(false); return; }
+    const fetchProject = async () => {
+      try {
+        const cached = sessionStorage.getItem(`project_${projectId}`);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            setProject({
+              id: projectId,
+              name: parsed.name || "未命名项目",
+              description: null,
+              created_at: new Date().toISOString(),
+              project_info: parsed.project_info || null,
+            });
+            sessionStorage.removeItem(`project_${projectId}`);
+            setLoading(false);
+            return;
+          } catch (e) {}
+        }
+        const res = await fetch(`/api/project-item?id=${projectId}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setProject(json.data);
+        } else {
+          console.error("鑾峰彇椤圭洰澶辫触:", json.error);
+        }
+      } catch (e) {
+        console.error("鑾峰彇椤圭洰澶辫触", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProject();
+  }, [projectId]);
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", key);
+    router.replace(`/projects?${params.toString()}`, { scroll: false });
+  };
+
+  if (!projectId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">鏆傛棤椤圭洰</h2>
+        <p className="text-sm text-gray-500 mb-6">鎮ㄨ繕娌℃湁鍒涘缓浠讳綍椤圭洰锛岀偣鍑讳笅鏂规寜閽紑濮?/p>
+        <Link href="/projects/new">
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+            <PlusCircle className="w-4 h-4 mr-2" /> 鏂板缓椤圭洰
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className="text-center py-20 text-gray-500">鍔犺浇涓?..</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">{project?.name || "未命名项目}</h1>
+          <p className="text-sm text-gray-500 mt-1">鍒涘缓鏃堕棿锛歿project?.created_at ? new Date(project.created_at).toLocaleDateString() : "--"}</p>
+        </div>
+      </div>
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleTabChange(tab.key)}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>{tab.label}</button>
+          ))}
+        </nav>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-8 min-h-[300px]">
+        {activeTab === "review" && <ReviewPanel projectInfo={project?.project_info} projectId={projectId || ""} />}
+        {activeTab === "knowledge" && <KnowledgeQAPanel projectId={projectId || ""} />}
+        {activeTab === "report" && <div className="text-center text-gray-500"><p className="text-base font-medium mb-2">鎶ュ憡鐢熸垚</p><p className="text-sm">鍔熻兘寮€鍙戜腑...</p></div>}
+        {activeTab === "compare" && <div className="text-center text-gray-500"><p className="text-base font-medium mb-2">鎶ュ憡瀵规瘮</p><p className="text-sm">鍔熻兘寮€鍙戜腑...</p></div>}
+        {activeTab === "issues" && <div className="text-center text-gray-500"><p className="text-base font-medium mb-2">闂杩借釜</p><p className="text-sm">鍔熻兘寮€鍙戜腑...</p></div>}
+      </div>
+    </div>
+  );
+}
+
+function ReviewPanel({ projectInfo, projectId }) {
+  const [editableInfo, setEditableInfo] = useState(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [reviewResult, setReviewResult] = useState(null);
+  const [showAllRegulations, setShowAllRegulations] = useState(false);
+  const [hasFile, setHasFile] = useState(!!projectInfo);
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (projectInfo) {
+      setEditableInfo(JSON.parse(JSON.stringify(projectInfo)));
+      setHasFile(true);
+    }
+  }, [projectInfo]);
+
+  const handleInfoChange = (section, key, value) => {
+    setEditableInfo((prev) => {
+      const next = JSON.parse(JSON.stringify(prev));
+      next[section][key] = value || null;
+      return next;
+    });
+  };
+
+  const handleUploadFile = async () => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("name", "椤圭洰鏂囦欢鏇存柊");
+      formData.append("file", file);
+      formData.append("project_id", projectId);
+      const res = await fetch("/api/projects", { method: "POST", body: formData });
+      const json = await res.json();
+      const info = json.data?.project_info || { project_info: {}, special_designs: {} };
+      setEditableInfo(info);
+      setHasFile(true);
+      sessionStorage.setItem("project_" + projectId, JSON.stringify({ name: json.data?.project_name || "未命名项目, project_info: info }));
+    } catch (e) {
+      console.error("涓婁紶澶辫触", e);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleConfirmGenerate = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/review/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_info: editableInfo?.project_info || {}, special_designs: editableInfo?.special_designs || {} }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setReviewResult(json.data); console.log("reviewResult:", JSON.stringify(json.data, null, 2));
+        setConfirmed(true);
+      } else {
+        alert("鐢熸垚瀹″浘娓呭崟澶辫触: " + (json.error || "鏈煡閿欒"));
+      }
+    } catch (e) {
+      alert("鐢熸垚瀹″浘娓呭崟澶辫触锛岃绋嶅悗閲嶈瘯");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  if (!editableInfo && !hasFile) {
+    return (
+      <div className="space-y-6">
+        <form onSubmit={(e) => { e.preventDefault(); handleUploadFile(); }} className="space-y-6">
+          <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-200 rounded-lg p-12 text-center cursor-pointer hover:border-blue-300 transition-colors">
+            <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.doc,.txt"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }} />
+            <CloudUpload className="w-12 h-12 text-blue-600 mx-auto mb-3" />
+            <p className="text-sm text-gray-600">鐐瑰嚮鎴栨嫋鎷戒笂浼犻」鐩璁¤鏄?/p>
+            <p className="text-xs text-gray-400 mt-1">鏀寔 PDF銆丏OCX銆丏OC銆乀XT 鏍煎紡</p>
+          </div>
+          {file && (
+            <div className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg px-4 py-2">
+              <span>{file.name}</span>
+              <button type="button" onClick={() => setFile(null)} className="ml-auto text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+          )}
+          <Button type="submit" disabled={!file || uploading} className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white">{uploading ? "鎻愪氦涓?.." : "纭鎻愪氦"}</Button>
+        </form>
+      </div>
+    );
+  }
+
+  const projectData = editableInfo?.project_info || {};
+  if (!projectData["瀹″浘涓撲笟"]) { projectData["瀹″浘涓撲笟"] = "寤虹瓚涓撲笟"; }
+  const specialData = editableInfo?.special_designs || {};
+  const projectKeys = Object.keys(projectData).filter(k => k !== "瀹″浘涓撲笟").concat("瀹″浘涓撲笟");
+  const specialKeys = Object.keys(specialData);
+
+  if (confirmed && reviewResult) {
+    const regulations = reviewResult.regulations || [];
+    const topIssues = reviewResult.top_issues || [];
+    const displayRegulations = showAllRegulations ? regulations : regulations.slice(0, 5);
+
+    return (
+      <div className="flex gap-6">
+        <div className="w-[380px] shrink-0 space-y-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">椤圭洰淇℃伅</h3>
+            <div className="space-y-3">
+              {projectKeys.map((key) => (
+                <div key={key}>
+                  <p className="text-xs text-gray-500">{key}</p>
+                  <p className="text-sm font-medium text-gray-900">{projectData[key] || "鏈彁鍙栧埌"}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          {specialKeys.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">涓撻」璁捐淇℃伅</h3>
+              <div className="space-y-3">
+                {specialKeys.map((key) => (
+                  <div key={key}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{key}</span>
+                      <span className="text-xs text-gray-400">{specialData[key] ? "宸叉秹鍙? : "鏈秹鍙?}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 mt-0.5">{specialData[key] || "璁捐璇存槑涓湭鎻愬強璇ヤ笓椤?}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0 space-y-6">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-4">瑙勮寖娓呭崟</h3>
+            <div className="space-y-3">
+              {displayRegulations.map((reg, idx) => (
+                <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0 mt-0.5">{reg.code_number}</span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{reg.code_name}</p>
+                      {reg.reason && <p className="text-xs text-gray-500 mt-1">{reg.reason}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {regulations.length > 5 && (
+              <button onClick={() => setShowAllRegulations(!showAllRegulations)} className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
+                {showAllRegulations ? "鏀惰捣" : "鏌ョ湅鏇村锛堝叡" + regulations.length + "鏉★級"}
+              </button>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-4">鍘嗗彶楂橀闂</h3>
+            <div className="space-y-3">
+              {topIssues.map((issue, idx) => (
+                <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded">楂橀 #{idx + 1}</span>
+                    <span className="text-xs text-gray-400">鍑虹幇 {issue.frequency} 娆?/span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 mb-2">{issue.issue_summary}</p>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <p className="text-xs text-gray-500"><span className="font-medium">闂鎻忚堪锛?/span>{issue.sample_description}</p>
+                    <p className="text-xs text-gray-500"><span className="font-medium">瑙勮寖瑕佹眰锛?/span>{issue.sample_requirement}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-4 pt-4 border-t border-gray-100">
+            <Button className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => {
+                const content = generateDownloadContent(projectData, specialData, reviewResult);
+                const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "瀹″浘娓呭崟_" + (projectData["椤圭洰鍚嶇О"] || "未命名项目) + ".txt";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}>
+              鐐瑰嚮涓嬭浇
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {projectKeys.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">椤圭洰淇℃伅</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {projectKeys.map((key) => (
+              <div key={key} className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">{key}</p>
+                <input className="w-full text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                  value={projectData[key] || ""} placeholder="鏈彁鍙栧埌"
+                  onChange={(e) => handleInfoChange("project_info", key, e.target.value)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {specialKeys.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">涓撻」璁捐淇℃伅</h3>
+          <div className="space-y-3">
+            {specialKeys.map((key) => (
+              <div key={key} className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{key}</span>
+                  <span className="text-xs text-gray-400">{specialData[key] ? "宸叉秹鍙? : "鏈秹鍙?}</span>
+                </div>
+                <input className="w-full text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                  value={specialData[key] || ""} placeholder="璁捐璇存槑涓湭鎻愬強璇ヤ笓椤?
+                  onChange={(e) => handleInfoChange("special_designs", key, e.target.value)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="flex gap-4 pt-4 border-t border-gray-100">
+        <Button onClick={handleConfirmGenerate} disabled={generating} className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white">
+          {generating ? "鐢熸垚涓?.." : "纭鐢熸垚"}
+        </Button>
+        <Button disabled variant="outline" className="flex-1 h-11 text-blue-600 border-blue-600 hover:bg-blue-50">鐐瑰嚮涓嬭浇</Button>
+      </div>
+    </div>
+  );
+}
+
+function generateDownloadContent(projectData, specialData, reviewResult) {
+  const lines = [];
+  lines.push("===== 瀹″浘娓呭崟 =====");
+  lines.push("");
+  lines.push("--- 椤圭洰淇℃伅 ---");
+  for (const [key, val] of Object.entries(projectData)) {
+    lines.push(key + ": " + (val || "鏈彁鍙栧埌"));
+  }
+  lines.push("");
+  lines.push("--- 涓撻」璁捐淇℃伅 ---");
+  for (const [key, val] of Object.entries(specialData)) {
+    lines.push(key + ": " + (val || "鏈秹鍙?));
+  }
+  lines.push("");
+  lines.push("--- 瑙勮寖娓呭崟 ---");
+  if (reviewResult?.regulations) {
+    for (const reg of reviewResult.regulations) {
+      lines.push(reg.code_number + " " + reg.code_name);
+      if (reg.reason) lines.push("  鐞嗙敱: " + reg.reason);
+    }
+  }
+  lines.push("");
+  lines.push("--- 鍘嗗彶楂橀闂 ---");
+  if (reviewResult?.top_issues) {
+    for (const issue of reviewResult.top_issues) {
+      lines.push("闂: " + issue.issue_summary + "锛堝嚭鐜? + issue.frequency + "娆★級");
+      lines.push("  鎻忚堪: " + issue.sample_description);
+      lines.push("  瑙勮寖: " + issue.sample_requirement);
+    }
+  }
+  lines.push("");
+  lines.push("鐢熸垚鏃堕棿: " + new Date().toLocaleString());
+  return lines.join("\n");
+}
+
+function KnowledgeQAPanel({ projectId }: { projectId: string }) {
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string; type?: "code_query" | "expert_match"; detail?: any }[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [awaitingFollowUp, setAwaitingFollowUp] = useState(false);
+  const [lastExpertQuestion, setLastExpertQuestion] = useState("");
+  const [expertMatchCoreQuestion, setExpertMatchCoreQuestion] = useState("");
+  const [expertMatchCoreQuestion, setExpertMatchCoreQuestion] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleFollowUpCodeQuery = async () => {
+    setAwaitingFollowUp(false);
+    setLoading(true);
+    setMessages((prev) => [...prev, { role: "user", content: "闇€瑕侊紝璇峰府鎴戞煡鐩稿叧瑙勮寖" }]);
+
+    try {
+      const res = await fetch("/api/coze/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: expertMatchCoreQuestion || lastExpertQuestion, expertOnly: true }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setMessages((prev) => [...prev, { role: "assistant", content: `銆愯鑼冩煡璇€慭n${json.data || "鏌ヨ鏃犵粨鏋?}`, type: "code_query", detail: json.detail || null }]);
+      } else {
+        setMessages((prev) => [...prev, { role: "assistant", content: "鏈嶅姟鏆備笉鍙敤锛岃绋嶅悗閲嶈瘯" }]);
+      }
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "缃戠粶閿欒锛岃绋嶅悗閲嶈瘯" }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFollowUpNo = () => {
+    setAwaitingFollowUp(false);
+    setMessages((prev) => [...prev, { role: "user", content: "涓嶉渶瑕侊紝璋㈣阿" }]);
+    setMessages((prev) => [...prev, { role: "assistant", content: "濂界殑锛屾湁闂闅忔椂闂垜銆? }]);
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
+    const question = input.trim();
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: question }]);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/coze/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const label = json.type === "code_query" ? "瑙勮寖鏌ヨ" : "涓撳鍖归厤";
+        const answer = json.data || "鏌ヨ鏃犵粨鏋?;
+        setMessages((prev) => [...prev, { role: "assistant", content: `銆?{label}銆慭n${answer}`, type: json.type, detail: json.detail || null }]);
+        
+        // 濡傛灉鏄笓瀹跺尮閰嶇粨鏋滐紝杩介棶鏄惁闇€瑕佹煡瑙勮寖
+        if (json.type === "expert_match" && json.askFollowUp) {
+          setAwaitingFollowUp(true);
+          setLastExpertQuestion(question);
+          const coreQ = question.replace(/鎺ㄨ崘涓€涓笓瀹秥鎺ㄨ崘涓撳|鎵捐皝|闂皝|鍝綅涓撳|鍝釜涓撳|甯垜鎵緗鍝綅|鍝釜/g,"").trim();
+          setExpertMatchCoreQuestion(coreQ || question);
+        }
+      }
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "缃戠粶閿欒锛岃绋嶅悗閲嶈瘯" }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  return (
+    <div className="flex flex-col" style={{ height: "calc(100vh - 320px)" }}>
+    <div className="flex flex-col" style={{ height: "calc(100vh - 320px)" }}>
+        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">鐭ヨ瘑闂瓟</span>
+        <span className="text-xs text-gray-400">杈撳叆闂锛岃嚜鍔ㄨ瘑鍒鑼冩煡璇㈡垨涓撳鍖归厤</span>
+      </div>
+
+      {/* 瀵硅瘽鍖哄煙 */}
+      <div className="flex-1 overflow-y-auto space-y-4 mb-4 px-1">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-3">
+              <MessageSquare className="w-6 h-6 text-blue-500" />
+            </div>
+            <p className="text-gray-500 text-sm mb-2">杈撳叆鎮ㄧ殑闂锛屽紑濮嬬煡璇嗛棶绛?/p>
+            <p className="text-gray-400 text-xs">
+              渚嬪锛氶珮灞傚缓绛戦槻鐏垎鍖鸿姹傛湁鍝簺锛?
+            </p>
+            <p className="text-gray-400 text-xs mt-1">
+              鎴栵細鍦颁笅瀹ら槻姘磋璁￠棶棰樻壘鍝綅涓撳锛?
+            </p>
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[80%] rounded-xl px-4 py-3 ${
+              msg.role === "user"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-50 border border-gray-200 text-gray-800"
+            }`}>
+              {msg.type && msg.role === "assistant" && (
+                <div className="flex items-center gap-1 mb-1">
+                  {msg.type === "code_query" ? (
+                    <BookOpen className="w-3.5 h-3.5 text-blue-500" />
+                  ) : (
+                    <Users className="w-3.5 h-3.5 text-green-500" />
+                  )}
+                  <span className={`text-xs font-medium ${msg.type === "code_query" ? "text-blue-600" : "text-green-600"}`}>
+                    {msg.type === "code_query" ? "瑙勮寖鏌ヨ" : "涓撳鍖归厤"}
+                  </span>
+                </div>
+              )}
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              {msg.type && msg.detail && (
+                <button
+                  onClick={() => setDetailPanel({ type: msg.type, data: msg.detail })}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline mt-1"
+                >
+                  鏌ョ湅璇︽儏 鈫?
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+        {/* 杩介棶鎸夐挳锛氭槸鍚﹂渶瑕佹煡瑙勮寖 */}
+        {awaitingFollowUp && (
+          <div className="flex items-center justify-center gap-3 py-3">
+            <span className="text-sm text-gray-500">鏄惁闇€瑕佹煡璇㈤棶棰樼浉鍏宠鑼冿紵</span>
+            <button
+              onClick={handleFollowUpCodeQuery}
+              disabled={loading}
+              className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              闇€瑕?
+            </button>
+            <button
+              onClick={handleFollowUpNo}
+              disabled={loading}
+              className="px-4 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            >
+              涓嶉渶瑕?
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 杈撳叆鍖?*/}
+      <div className="border border-gray-200 rounded-xl bg-white p-2 flex items-end gap-2">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="璇疯緭鍏ラ棶棰橈紝鑷姩璇嗗埆瑙勮寖鏌ヨ鎴栦笓瀹跺尮閰?.."
+          className="flex-1 resize-none border-0 outline-none text-sm py-2 px-3 max-h-32"
+          rows={1}
+        />
+        <Button
+          onClick={handleSend}
+          disabled={loading || !input.trim()}
+          className="bg-blue-600 hover:bg-blue-700 text-white shrink-0 h-9 px-4"
+        >
+          <Send className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+      {/* 璇︽儏杈规爮 */}
+      {detailPanel && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setDetailPanel(null)} />
+          <div className="relative w-96 bg-white shadow-2xl h-full overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-800">
+                {detailPanel.type === "code_query" ? "瑙勮寖璇︽儏" : "涓撳璇︽儏"}
+              </h3>
+              <button onClick={() => setDetailPanel(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {detailPanel.type === "code_query" && detailPanel.data?.rules?.map((rule, i) => (
+                <div key={i} className="border border-gray-200 rounded-xl p-4 bg-white">
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0">瑙勮寖 {i+1}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 mb-1">{rule.codeName}</p>
+                  <p className="text-xs text-blue-600 mb-2">{rule.codeId}</p>
+                  <p className="text-sm text-gray-700 font-medium mb-1">{rule.requirement}</p>
+                  <p className="text-xs text-gray-500">{rule.detail}</p>
+                </div>
+              ))}
+              {detailPanel.type === "expert_match" && detailPanel.data?.experts?.map((expert, i) => (
+                <div key={i} className="border border-gray-200 rounded-xl p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                      {expert.role || "涓撳 " + (i+1)}
+                    </span>
+                    {expert.phone && (
+                      <span className="text-xs text-gray-400">{expert.phone}</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 mb-1">
+                    {expert.name}
+                    {expert.title && <span className="text-xs text-gray-500 font-normal ml-1">({expert.title})</span>}
+                  </p>
+                  {expert.project && (
+                    <p className="text-xs text-gray-500 mb-1">椤圭洰锛歿expert.project}</p>
+                  )}
+                  {expert.problem && (
+                    <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2 mt-1">
+                      鐩稿叧闂锛歿expert.problem}
+                    </p>
+                  )}
+                </div>
+              ))}
+              {!detailPanel.data?.rules?.length && !detailPanel.data?.experts?.length && (
+                <p className="text-sm text-gray-400 text-center py-8">鏆傛棤缁撴瀯鍖栬鎯呮暟鎹?/p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-20 text-gray-500">鍔犺浇涓?..</div>}>
+      <ProjectsPageContent />
+    </Suspense>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
