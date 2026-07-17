@@ -7,8 +7,8 @@ import { useState, useEffect } from "react";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase/client";
-import ReviewPanel from "@/components/review/ReviewPanel";
-import KnowledgeQAPanel from "@/components/knowledge/KnowledgeQAPanel";
+import ReviewPanel from "@/features/review/ReviewPanel";
+import KnowledgeQAPanel from "@/features/knowledge/KnowledgeQAPanel";
 
 type Project = {
   id: string;
