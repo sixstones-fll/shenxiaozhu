@@ -8,6 +8,7 @@ import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReviewPanel from "@/features/review/ReviewPanel";
 import KnowledgeQAPanel from "@/features/knowledge/KnowledgeQAPanel";
+import ReportPanel from "@/features/report/ReportPanel";
 
 const tabs = [
   { key: "knowledge", label: "知识问答" },
@@ -42,7 +43,7 @@ function ProjectsPageContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full">
       <div className="border-b border-gray-200">
         <nav className="flex gap-8">
           {tabs.map((tab) => (
@@ -58,16 +59,11 @@ function ProjectsPageContent() {
           ))}
         </nav>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 min-h-[300px]">
-        <div key={activeTab}>
+      <div className="bg-white rounded-xl border border-gray-200 flex-1 flex flex-col min-h-0">
+        <div key={activeTab} className="h-full">
           {activeTab === "review" && <ReviewPanel projectId={projectId || ""} />}
           {activeTab === "knowledge" && <KnowledgeQAPanel projectId={projectId || ""} />}
-          {activeTab === "report" && (
-            <div className="text-center text-gray-500 p-8">
-              <p className="text-base font-medium mb-2">报告生成</p>
-              <p className="text-sm">功能开发中...</p>
-            </div>
-          )}
+          {activeTab === "report" && <ReportPanel projectId={projectId || ""} />}
           {activeTab === "compare" && (
             <div className="text-center text-gray-500 p-8">
               <p className="text-base font-medium mb-2">报告对比</p>
