@@ -4,25 +4,51 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { CloudUpload, X } from "lucide-react";
 
-export default function ReviewPanel({ projectInfo, projectId }) {
+export default function ReviewPanel({ projectId }) {
   const rpKey = `rp_${projectId}`;
   const [editableInfo, setEditableInfo] = useState(null);
   const [confirmed, setConfirmed] = useState(() => { try { return sessionStorage.getItem(rpKey + "_cf") === "true"; } catch { return false; } });
   const [generating, setGenerating] = useState(false);
   const [reviewResult, setReviewResult] = useState(() => { try { const s = sessionStorage.getItem(rpKey + "_rs"); return s ? JSON.parse(s) : null; } catch { return null; } });
   const [showAllRegulations, setShowAllRegulations] = useState(false);
-  const [hasFile, setHasFile] = useState(!!projectInfo);
+  const [hasFile, setHasFile] = useState(false);
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [loadingProject, setLoadingProject] = useState(true);
 
   useEffect(() => {
-    if (projectInfo && !editableInfo) {
-      const info = typeof projectInfo === "string" ? JSON.parse(projectInfo) : projectInfo;
-      setEditableInfo(info);
-      setHasFile(true);
-    }
-  }, [projectInfo]);
+    if (!projectId) { setLoadingProject(false); return; }
+    const loadProjectInfo = async () => {
+      try {
+        const cached = sessionStorage.getItem("project_info_" + projectId);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setEditableInfo(parsed);
+          setHasFile(true);
+          setLoadingProject(false);
+          return;
+        }
+        const res = await fetch(`/api/project-item?id=${projectId}`);
+        const json = await res.json();
+        if (json.success && json.data && json.data.project_info) {
+          const info = typeof json.data.project_info === "string"
+            ? JSON.parse(json.data.project_info)
+            : json.data.project_info;
+          setEditableInfo(info);
+          setHasFile(true);
+          sessionStorage.setItem("project_info_" + projectId, JSON.stringify(info));
+        }
+      } catch (e) {
+        console.error("加载项目信息失败", e);
+      } finally {
+        setLoadingProject(false);
+      }
+    };
+    loadProjectInfo();
+  }, [projectId]);
+
+
 
   const handleInfoChange = (section, key, value) => {
     setEditableInfo((prev) => {
@@ -119,32 +145,6 @@ export default function ReviewPanel({ projectInfo, projectId }) {
     URL.revokeObjectURL(url);
   };
 
-  if (!editableInfo && !hasFile) {
-    return (
-      <div className="space-y-6">
-        <form onSubmit={(e) => { e.preventDefault(); handleUploadFile(); }} className="space-y-6">
-          <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-200 rounded-lg p-12 text-center cursor-pointer hover:border-blue-300 transition-colors">
-            <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.doc,.txt"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }} />
-            <CloudUpload className="w-12 h-12 text-blue-600 mx-auto mb-3" />
-            <p className="text-sm text-gray-600">点击或拖拽上传项目设计说明</p>
-            <p className="text-xs text-gray-400 mt-1">支持 PDF、DOCX、DOC、TXT 格式</p>
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={!file || uploading} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">
-              {uploading ? "上传中..." : "确认提交"}
-            </Button>
-            <Button type="button" onClick={() => handleConfirmGenerate()} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 flex-1">
-              暂不上传，直接开启新项目
-            </Button>
-          </div>
-        </form>
-      </div>
-    );
-  }
-
-
-
   const projectInfoKeys = ["项目名称", "项目编号", "建筑类型", "高度分类", "防火分类", "结构形式", "抗震设防烈度", "审图专业"];
   const specialDesignsKeys = ["人防", "绿建", "消防", "无障碍", "装配式", "BIM", "抗震支架", "海绵城市"];
 
@@ -153,23 +153,8 @@ export default function ReviewPanel({ projectInfo, projectId }) {
     if (reviewResult) sessionStorage.setItem(rpKey + "_rs", JSON.stringify(reviewResult));
   }, [confirmed, reviewResult, rpKey]);
 
-  if (!editableInfo && !hasFile) {
-    return (
-      <div className="space-y-6">
-        <form onSubmit={(e) => { e.preventDefault(); handleUploadFile(); }} className="space-y-6">
-          <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-200 rounded-lg p-12 text-center cursor-pointer hover:border-blue-300 transition-colors">
-            <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.doc,.txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }} />
-            <CloudUpload className="w-12 h-12 text-blue-600 mx-auto mb-3" />
-            <p className="text-sm text-gray-600">点击或拖拽上传项目设计说明</p>
-            <p className="text-xs text-gray-400 mt-1">支持 PDF、DOCX、DOC、TXT 格式</p>
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={!file || uploading} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">{uploading ? "上传中..." : "确认提交"}</Button>
-            <Button type="button" onClick={() => handleConfirmGenerate()} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 flex-1">暂不上传，直接开启新项目</Button>
-          </div>
-        </form>
-      </div>
-    );
+  if (loadingProject) {
+    return <div className="text-center py-20 text-gray-500">加载中...</div>;
   }
 
   return (
@@ -242,6 +227,8 @@ export default function ReviewPanel({ projectInfo, projectId }) {
     </div>
   );
 }
+
+
 
 
 
