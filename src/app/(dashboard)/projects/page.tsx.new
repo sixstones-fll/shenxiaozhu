@@ -1,0 +1,105 @@
+return (
+    <div className="flex gap-6">
+      {/* 项目信息编辑区 */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">项目信息</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {projectInfoKeys.map((key) => (
+            <div key={key}>
+              <label className="text-xs text-gray-500 mb-1 block">{key}</label>
+              <input
+                type="text"
+                value={editableInfo?.project_info?.[key] || ""}
+                onChange={(e) => handleInfoChange("project_info", key, e.target.value)}
+                placeholder="未提取到"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 专项设计信息编辑区 */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">专项设计信息</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {specialDesignsKeys.map((key) => (
+            <div key={key}>
+              <label className="text-xs text-gray-500 mb-1 block">{key}</label>
+              <input
+                type="text"
+                value={editableInfo?.special_designs?.[key] || ""}
+                onChange={(e) => handleInfoChange("special_designs", key, e.target.value)}
+                placeholder="设计说明中未提及该专项"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 按钮区 */}
+      <div className="flex gap-3">
+        <Button
+          onClick={handleConfirmGenerate}
+          disabled={generating}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {generating ? "生成中..." : "确认生成"}
+        </Button>
+        <Button
+          onClick={handleDownload}
+          disabled={!confirmed}
+          className={"border border-gray-200 " + (confirmed ? "text-blue-600 hover:bg-blue-50" : "text-gray-400 cursor-not-allowed")}
+        >
+          点击下载
+        </Button>
+      </div>
+
+      {/* 审图规划结果预览 */}
+      {reviewResult && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* 规范清单 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">规范清单</h3>
+            <div className="space-y-3">
+              {(showAllRegulations ? reviewResult.regulations || [] : (reviewResult.regulations || []).slice(0, 5)).map((reg, idx) => (
+                <div key={idx} className="border border-gray-100 rounded-lg p-3 bg-gray-50">
+                  <p className="text-sm font-medium text-gray-900">{reg.codeName}</p>
+                  {reg.codeId && <p className="text-xs text-blue-500 mt-0.5">{reg.codeId}</p>}
+                  {reg.detail && <p className="text-xs text-gray-500 mt-1">规范要求：{reg.detail}</p>}
+                </div>
+              ))}
+            </div>
+            {reviewResult.regulations && reviewResult.regulations.length > 5 && (
+              <button
+                onClick={() => setShowAllRegulations(!showAllRegulations)}
+                className="text-xs text-blue-600 hover:text-blue-700 mt-3"
+              >
+                {showAllRegulations ? "收起" : "查看更多（共" + reviewResult.regulations.length + "条）"}
+              </button>
+            )}
+          </div>
+
+          {/* 历史高频问题 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">历史高频问题</h3>
+            <div className="space-y-3">
+              {(reviewResult.topIssues || []).map((issue, idx) => (
+                <div key={idx} className="border border-gray-100 rounded-lg p-3 bg-gray-50">
+                  <p className="text-sm font-medium text-gray-900">
+                    {"高频 #" + (idx + 1)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">问题描述：{issue.summary}</p>
+                  {issue.sample_requirement && (
+                    <p className="text-xs text-gray-500 mt-0.5">规范要求：{issue.sample_requirement}</p>
+                  )}
+                  <p className="text-xs text-amber-600 mt-1">出现 {issue.frequency} 次</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -102,7 +102,7 @@ export default function KnowledgeQAPanel({ projectId }: { projectId: string }) {
           </div>
         )}
         {messages.map((msg, i) => (
-          <div key={i} className={ lex }>
+          <div key={i} className="flex justify-start">
             <div
               className={`max-w-[80%] rounded-xl px-4 py-3 ${msg.role === "user" ? "bg-blue-600 text-white" : "bg-gray-50 border border-gray-200 text-gray-800"}`}
             >

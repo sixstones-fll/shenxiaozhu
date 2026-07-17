@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -7,8 +7,8 @@ import { useState, useEffect } from "react";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase/client";
-import ReviewPanel from "@/features/review/ReviewPanel";
-import KnowledgeQAPanel from "@/features/knowledge/KnowledgeQAPanel";
+import ReviewPanel from "@/components/review/ReviewPanel";
+import KnowledgeQAPanel from "@/components/knowledge/KnowledgeQAPanel";
 
 type Project = {
   id: string;
@@ -19,11 +19,11 @@ type Project = {
 };
 
 const tabs = [
-  { key: "knowledge", label: "知识问答" },
-  { key: "review", label: "审图规划" },
-  { key: "report", label: "报告生成" },
-  { key: "compare", label: "报告对比" },
-  { key: "issues", label: "问题追踪" },
+  { key: "knowledge", label: "XX" },
+  { key: "review", label: "????" },
+  { key: "report", label: "????" },
+  { key: "compare", label: "????" },
+  { key: "issues", label: "????" },
 ];
 
 function ProjectsPageContent() {

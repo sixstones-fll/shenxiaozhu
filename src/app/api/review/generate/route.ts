@@ -3,6 +3,7 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { JsonOutputParser } from "@langchain/core/output_parsers";
+import { createClient } from "@supabase/supabase-js";
 
 // -------------------- 类型定义 --------------------
 
@@ -77,16 +78,18 @@ function countBySummary(issues: HistoryIssue[]): { summary: string; count: numbe
 function extractBuildingKeywords(buildingType: string): string[] {
   if (!buildingType) return [];
   const keywords: string[] = [];
-  // 常见建筑类型关键词映射
+  // 常见建筑类型关键词映射（支持多层公共建筑（教育建筑）这类长描述）
   if (/学校|教育|小学|中学|幼儿园/.test(buildingType)) keywords.push("学校");
-  if (/住宅|公寓|保障房|洋房/.test(buildingType)) keywords.push("住宅");
-  if (/医院|康养|医疗/.test(buildingType)) keywords.push("医院");
-  if (/商业|商场|购物/.test(buildingType)) keywords.push("商业");
+  if (/住宅|公寓|保障房|洋房|居住/.test(buildingType)) keywords.push("住宅");
+  if (/医院|康养|医疗|护理/.test(buildingType)) keywords.push("医院");
+  if (/商业|商场|购物|酒店|餐饮/.test(buildingType)) keywords.push("商业");
   if (/办公|写字楼/.test(buildingType)) keywords.push("办公");
-  if (/厂房|工业/.test(buildingType)) keywords.push("厂房");
+  if (/厂房|工业|仓储|物流/.test(buildingType)) keywords.push("工业厂房");
   if (/车库|地下车库|停车/.test(buildingType)) keywords.push("地下车库");
-  // 如果没有匹配到任何关键词，返回原始值
-  if (keywords.length === 0) keywords.push(buildingType);
+  if (/体育|场馆|展览/.test(buildingType)) keywords.push("体育场馆");
+  if (/学校|教育/.test(buildingType)) keywords.push("学校");
+  // 如果没有匹配到任何关键词，返回"通用"
+  if (keywords.length === 0) keywords.push("通用");
   return keywords;
 }
 
@@ -166,7 +169,8 @@ export async function POST(request: NextRequest) {
     const major = project_info?.审图专业 || "建筑专业";
     const buildingType = project_info?.建筑类型 || "";
     
-    let issuesUrl = supabaseUrl + "/rest/v1/history_issues?select=issue_summary,building_type,issue_description,requirement&major=eq." + encodeURIComponent(major);
+    // 4. 查询历史问题库（直接用 REST API 绕过 RLS）
+    const issuesUrl = supabaseUrl + "/rest/v1/history_issues?select=issue_summary,building_type,issue_description,requirement,project_name&major=eq." + encodeURIComponent(major);
     const issuesRes = await fetch(issuesUrl, {
       headers: {
         "apikey": serviceKey,
@@ -175,9 +179,10 @@ export async function POST(request: NextRequest) {
     });
     let issues = await issuesRes.json();
     if (!Array.isArray(issues)) issues = [];
+    console.log("[DEBUG] issues count:", issues.length);
 
     /*
-      const fallbackUrl = supabaseUrl + "/rest/v1/history_issues?select=issue_summary,building_type,issue_description,requirement&major=eq." + encodeURIComponent(major);
+      const fallbackUrl = supabaseUrl + "/rest/v1/history_issues?select=issue_summary,building_type,issue_description,requirement,project_name&major=eq." + encodeURIComponent(major);
       const fallbackRes = await fetch(fallbackUrl, {
         headers: {
           "apikey": serviceKey,
@@ -197,7 +202,7 @@ export async function POST(request: NextRequest) {
       ? issues.filter((i: any) => buildingKeywords.some((k: string) => i.building_type.includes(k)))
       : issues;
     
-    const topIssues = countBySummary(filteredIssues as HistoryIssue[]).filter((item: any) => item.count > 3).map(item => {
+    const topIssues = countBySummary(filteredIssues as HistoryIssue[]).filter((item: any) => item.count >= 3).map(item => {
       // 随机选一条样本
       const sample = item.samples[Math.floor(Math.random() * item.samples.length)];
       return {
@@ -225,5 +230,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
 
 

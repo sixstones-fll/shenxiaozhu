@@ -39,8 +39,10 @@ export async function runWorkflow(
       const errorText = await response.text();
       return { success: false, error: `Coze API error (${response.status}): ${errorText}` };
     }
-    const data = await response.json();
-    console.log("[Coze sync response]", JSON.stringify(data));
+    const text = await response.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { code: -1, msg: text }; }
+    console.log("[Coze sync response]", JSON.stringify(data).substring(0, 500));
     return { success: true, data };
   } catch (error: any) {
     if (error.name === "AbortError") {
