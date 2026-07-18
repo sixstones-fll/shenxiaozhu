@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, ArrowRight, Trash2 } from "lucide-react";
 import Link from "next/link";
 
@@ -19,6 +19,9 @@ const BUILDING_TYPES = [
   "商业建筑","养老建筑","办公建筑","公共建筑",
 ];
 
+
+
+
 const MOCK_PROJECTS: ProjectItem[] = [
   { id:"p001", name:"城东九年制公立学校扩建工程", number:"SJ2024-001", buildingType:"教育建筑", buildingSubType:"学校", createdAt:"2024-03-15" },
   { id:"p002", name:"滨江国际社区住宅项目", number:"SJ2024-002", buildingType:"住宅", buildingSubType:"住宅", createdAt:"2024-04-20" },
@@ -35,7 +38,7 @@ const MOCK_PROJECTS: ProjectItem[] = [
   { id:"p013", name:"地铁5号线车辆段上盖项目", number:"SJ2024-009", buildingType:"交通建筑", buildingSubType:"交通", createdAt:"2024-01-20" },
   { id:"p014", name:"城西污水处理厂改建", number:"SJ2023-018", buildingType:"工业建筑", buildingSubType:"工业", createdAt:"2023-12-01" },
   { id:"p015", name:"蜀都万达广场", number:"SJ2023-010", buildingType:"商业建筑", buildingSubType:"商业", createdAt:"2023-06-15" },
-  { id:"p016", name:"沱江生态住宅小区", number:"SJ2024-010", buildingType:"住宅", buildingSubType:"住宅", createdAt:"2024-05-08" },
+  { id:"p016", name:"汯江生态住宅小区", number:"SJ2024-010", buildingType:"住宅", buildingSubType:"住宅", createdAt:"2024-05-08" },
   { id:"p017", name:"四川大学华西校区实验楼", number:"SJ2024-011", buildingType:"教育建筑", buildingSubType:"学校", createdAt:"2024-07-15" },
 ];
 
@@ -50,7 +53,29 @@ export default function ProjectManagePanel() {
   const [sq, setSq] = useState("");
   const [sl, setSl] = useState<string | null>(null);
   const [st, setSt] = useState<string | null>(null);
-  let f = MOCK_PROJECTS;
+  const [projects, setProjects] = useState<ProjectItem[]>(MOCK_PROJECTS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/projects")
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.data)) {
+          const realProjects = d.data.map((p) => ({
+            id: p.id,
+            name: p.name || "",
+            number: (p.project_info && p.project_info["项目编号"]) || "",
+            buildingType: (p.project_info && p.project_info["建筑类型"]) || "",
+            buildingSubType: (p.project_info && p.project_info["建筑类型"]) || "",
+            createdAt: p.created_at ? p.created_at.substring(0, 10) : "",
+          }));
+          setProjects([...realProjects, ...MOCK_PROJECTS]);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+    let f = projects;
   if (sq.trim()) { const q = sq.trim().toLowerCase(); f = f.filter(p => p.name.toLowerCase().includes(q) || p.number.toLowerCase().includes(q)); }
   if (sl) f = f.filter(p => getFL(p.name) === sl);
   if (st) f = f.filter(p => p.buildingType === st);
@@ -86,7 +111,7 @@ export default function ProjectManagePanel() {
           </thead>
           <tbody>
             {f.length === 0 ? (
-              <tr><td colSpan={4} className="text-center text-gray-400 py-16 text-sm">未找到匹配的项目</td></tr>
+              <tr><td colSpan={4} className="text-center text-gray-400 py-16 text-sm">暂无项目，请先在"新建项目"中创建</td></tr>
             ) : (
               f.map(p => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">

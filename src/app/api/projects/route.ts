@@ -1,10 +1,63 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { extractTextFromDocx, isDocxFile } from "@/lib/docx-parser";
 import { extractProjectInfo } from "@/lib/deepseek";
 
+
+export async function GET(request: NextRequest) {
+  try {
+    const cookieStore = cookies();
+    const cookiesToSet: { name: string; value: string; options: any }[] = [];
+    const headersToSet: Record<string, string> = {};
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll(); },
+          setAll(cookies, headers) {
+            cookiesToSet.push(...cookies);
+            Object.assign(headersToSet, headers);
+          },
+        },
+      }
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: "未登录" }, { status: 401 });
+    }
+
+    const adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { data: projects, error } = await adminClient
+      .from("projects")
+      .select("id, name, project_info, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    const response = NextResponse.json({ success: true, data: projects || [] });
+    cookiesToSet.forEach(({ name, value, options }) => { response.cookies.set(name, value, options); });
+    Object.entries(headersToSet).forEach(([key, value]) => { response.headers.set(key, value); });
+    return response;
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || "服务器错误" },
+      { status: 500 }
+    );
+  }
+}
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
