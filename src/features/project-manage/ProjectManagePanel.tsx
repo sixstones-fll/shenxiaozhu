@@ -42,6 +42,26 @@ const MOCK_PROJECTS: ProjectItem[] = [
   { id:"p017", name:"四川大学华西校区实验楼", number:"SJ2024-011", buildingType:"教育建筑", buildingSubType:"学校", createdAt:"2024-07-15" },
 ];
 
+
+
+function inferBuildingType(name: string): string {
+  const rules: [RegExp, string][] = [
+    [/学校|教育|实验楼|教学楼|校区|中学|小学|大学|学院/i, "教育建筑"],
+    [/医院|医疗|病房|医技|门诊|护理/i, "医疗建筑"],
+    [/住宅|小区|安置房|公寓|居住|家园|花园|社区/i, "住宅"],
+    [/商业|综合体|商场|购物中心|广场|万达|商铺/i, "商业建筑"],
+    [/办公|写字楼|商务|大厦|科创|科技|研发/i, "办公建筑"],
+    [/工业|厂房|仓储|物流|加工|制造|产业园|污水处理/i, "工业建筑"],
+    [/养老|福利院|敬老院|颐养/i, "养老建筑"],
+    [/交通|地铁|车站|枢纽|机场|车辆段/i, "交通建筑"],
+    [/会展|体育|文化|剧院|展览|博物馆|活动中心|会议/i, "公共建筑"],
+  ];
+  for (const [regex, type] of rules) {
+    if (regex.test(name)) return type;
+  }
+  return "公共建筑";
+}
+
 function getFL(n: string) {
   const c = n.charCodeAt(0);
   const m: Record<string, string> = {"城":"C","滨":"B","西":"X","市":"S","高":"G","绿":"L","四":"S","南":"N","成":"C","龙":"L","地":"D","蜀":"S","沱":"T"};
@@ -54,28 +74,28 @@ export default function ProjectManagePanel() {
   const [sl, setSl] = useState<string | null>(null);
   const [st, setSt] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectItem[]>(MOCK_PROJECTS);
-  const [loading, setLoading] = useState(true);
+  const [realProjects, setRealProjects] = useState<ProjectItem[]>(() => { try { const c = sessionStorage.getItem("pm_real"); return c ? JSON.parse(c) : []; } catch { return []; } });
 
   useEffect(() => {
     fetch("/api/projects")
       .then(r => r.json())
       .then(d => {
         if (d.success && Array.isArray(d.data)) {
-          const realProjects = d.data.map((p) => ({
+          const mapped = d.data.map((p) => ({
             id: p.id,
             name: p.name || "",
             number: (p.project_info && p.project_info["项目编号"]) || "",
-            buildingType: (p.project_info && p.project_info["建筑类型"]) || "",
-            buildingSubType: (p.project_info && p.project_info["建筑类型"]) || "",
+            buildingType: (p.project_info && p.project_info["建筑类型"]) || inferBuildingType(p.name || ""),
+            buildingSubType: (p.project_info && p.project_info["建筑类型"]) || inferBuildingType(p.name || ""),
             createdAt: p.created_at ? p.created_at.substring(0, 10) : "",
           }));
-          setProjects([...realProjects, ...MOCK_PROJECTS]);
+          setRealProjects(mapped);
+          try { sessionStorage.setItem("pm_real", JSON.stringify(mapped)); } catch {}
         }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
-    let f = projects;
+    let f = [...(realProjects.length > 0 ? [realProjects.sort((a,b) => b.createdAt.localeCompare(a.createdAt))[0]] : []), ...projects];
   if (sq.trim()) { const q = sq.trim().toLowerCase(); f = f.filter(p => p.name.toLowerCase().includes(q) || p.number.toLowerCase().includes(q)); }
   if (sl) f = f.filter(p => getFL(p.name) === sl);
   if (st) f = f.filter(p => p.buildingType === st);
