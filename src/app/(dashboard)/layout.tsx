@@ -1,4 +1,6 @@
+﻿"use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   PlusCircle,
   FolderOpen,
@@ -23,6 +25,13 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isActive = (href: string) => {
+    if (pathname === href) return true;
+    if (pathname.startsWith(href + "?")) return true;
+    if (pathname.startsWith(href + "#")) return true;
+    return false;
+  };
   return (
     <div className="flex h-screen bg-gray-50">
       {/* 侧边栏 */}
@@ -41,7 +50,11 @@ export default function DashboardLayout({
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                isActive(item.href)
+                  ? "bg-blue-50 text-blue-600 font-medium"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
             >
               <item.icon className="w-4 h-4 shrink-0 text-gray-400" />
               <span>{item.label}</span>
