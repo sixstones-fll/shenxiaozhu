@@ -1,14 +1,16 @@
 ﻿"use client";
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { Suspense, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useProjectContext } from "@/lib/context/ProjectContext";
 import ReviewPanel from "@/features/review/ReviewPanel";
 import KnowledgeQAPanel from "@/features/knowledge/KnowledgeQAPanel";
 import ReportPanel from "@/features/report/ReportPanel";
 import ComparePanel from "@/features/compare/ComparePanel";
+
 const tabs = [
   { key: "knowledge", label: "知识问答" },
   { key: "review", label: "审图规划" },
@@ -16,14 +18,48 @@ const tabs = [
   { key: "compare", label: "报告对比" },
   { key: "issues", label: "问题追踪" },
 ];
+
 function ProjectsPageContent() {
   const searchParams = useSearchParams();
-  const projectId = searchParams.get("id");
-  const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(tabParam || "review");
+  const router = useRouter();
+  const { state: ctxState, setProjectPage } = useProjectContext();
+  const urlProjectId = searchParams.get("id");
+  const urlTab = searchParams.get("tab");
+  const [projectId, setProjectId] = useState<string | null>(() => urlProjectId || ctxState.projectId);
+  const [activeTab, setActiveTab] = useState(urlTab || ctxState.activeTab || "review");
+
+  // 页面加载时：如果 URL 有项目，保存到 context 和 sessionStorage
+  useEffect(() => {
+    if (urlProjectId) {
+      setProjectPage(urlProjectId, urlTab || activeTab);
+      sessionStorage.setItem("last_project", JSON.stringify({ id: urlProjectId, tab: urlTab || activeTab }));
+      setProjectId(urlProjectId);
+    } else if (!projectId) {
+      // URL 没有项目，尝试从 sessionStorage 恢复
+      try {
+        const saved = sessionStorage.getItem("last_project");
+        if (saved) {
+          const { id, tab } = JSON.parse(saved);
+          if (id) {
+            router.replace(`/projects?id=${id}&tab=${tab || "review"}`);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  // 切换 tab 时同步 URL 和 context
   const handleTabChange = (key: string) => {
     setActiveTab(key);
+    if (projectId) {
+      setProjectPage(projectId, key);
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", key);
+      window.history.replaceState({}, "", url.toString());
+    }
   };
+
   if (!projectId) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 text-center">
@@ -37,6 +73,7 @@ function ProjectsPageContent() {
       </div>
     );
   }
+
   return (
     <div className="space-y-6 flex flex-col h-full">
       <div className="border-b border-gray-200">
@@ -54,10 +91,10 @@ function ProjectsPageContent() {
       </div>
       <div className="bg-white rounded-xl border border-gray-200 flex-1 flex flex-col min-h-0">
         <div key={activeTab} className="h-full">
-          {activeTab === "review" && <ReviewPanel projectId={projectId || ""} />}
-          {activeTab === "knowledge" && <KnowledgeQAPanel projectId={projectId || ""} />}
-          {activeTab === "report" && <ReportPanel projectId={projectId || ""} />}
-          {activeTab === "compare" && <ComparePanel projectId={projectId || ""} />}
+          {activeTab === "review" && <ReviewPanel projectId={projectId} />}
+          {activeTab === "knowledge" && <KnowledgeQAPanel projectId={projectId} />}
+          {activeTab === "report" && <ReportPanel projectId={projectId} />}
+          {activeTab === "compare" && <ComparePanel projectId={projectId} />}
           {activeTab === "issues" && (
             <div className="text-center text-gray-500 p-8">
               <p className="text-base font-medium mb-2">问题追踪</p>
@@ -69,6 +106,7 @@ function ProjectsPageContent() {
     </div>
   );
 }
+
 export default function ProjectsPage() {
   return (
     <Suspense fallback={<div className="text-center py-20 text-gray-500">加载中...</div>}>

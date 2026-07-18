@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -36,8 +36,8 @@ export default function NewProjectPage() {
         }
       }
     } catch (err) {
-      console.error("项目名预提取失败", err);
-      setExtractError("项目名识别失败，请手动填写");
+      console.error("项目名称预提取失败", err);
+      setExtractError("项目名称识别失败，请手动填写");
     } finally {
       setExtracting(false);
     }
@@ -68,7 +68,7 @@ export default function NewProjectPage() {
     }
 
     if (withFile && !file) {
-      alert('请先上传文件或选择“暂不上传”');
+      alert('请先上传文件或选择"暂不上传"');
       return;
     }
 
@@ -97,9 +97,10 @@ export default function NewProjectPage() {
           }));
         } catch(e) {}
       }
+            sessionStorage.setItem("last_project", JSON.stringify({ id: projectData.project_id, tab: "review" }));
       router.push(`/projects?id=${projectData.project_id}&tab=review`);
       router.refresh();
-    } catch {
+    } catch (e) {
       alert("创建项目失败，请稍后重试");
     } finally {
       setLoading(false);
@@ -206,3 +207,6 @@ export default function NewProjectPage() {
     </div>
   );
 }
+
+
+
