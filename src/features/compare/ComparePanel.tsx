@@ -182,7 +182,7 @@ export default function ComparePanel({ projectId }: { projectId: string }) {
                   ["序号","问题描述","图号","图名","违反条文","严重级","状态"].join(","),
                   ...result.details.map((d,i) =>
                     [d.id||i+1,d.description,d.drawingNo,d.drawingName,d.violation,d.severity,d.status]
-                      .map(v => "\""+(v||"").replace(/\"/g,"\"\"")+"\"").join(",")
+                      .map(v => "\""+(v||"").toString().replace(/\"/g,"\"\"")+"\"").join(",")
                   )
                 ].join("\n");
                 const blob = new Blob(["\uFEFF"+csv]);

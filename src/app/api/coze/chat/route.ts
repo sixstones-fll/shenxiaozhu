@@ -27,18 +27,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
   } catch (error) {
-    console.error("Chat API error:", error.message, error.stack);
+    console.error("Chat API error:", (error as any).message, (error as any).stack);
     return NextResponse.json({ success: false, error: "服务暂不可用，请稍后重试" }, { status: 500 });
   }
 }
 
-function identifyIntentFromKeywords(question) {
+function identifyIntentFromKeywords(question: string) {
   const expertKeywords = ["专家", "推荐", "找谁", "问谁", "哪位", "哪个", "擅长", "匹配", "谁负责", "找哪个", "联系人", "找哪位", "推荐问", "哪个专家", "帮我找", "介绍", "负责人", "联系方式", "联系"];
   if (expertKeywords.some((k) => question.includes(k))) return "expert_match";
   return "code_query";
 }
 
-async function routeToExpertMatch(question) {
+async function routeToExpertMatch(question: string) {
   console.log("[DEBUG] routeToExpertMatch called with:", question.substring(0, 100));
   try {
     const result = await matchExperts(question);
@@ -51,7 +51,7 @@ async function routeToExpertMatch(question) {
   }
 }
 
-async function routeToCodeQuery(question) {
+async function routeToCodeQuery(question: string) {
   console.log("[DEBUG] routeToCodeQuery called with:", question.substring(0, 100));
   const workflowId = process.env.COZE_WORKFLOW_CODE_QUERY_ID;
   let rawOutput = "";
@@ -97,7 +97,7 @@ async function routeToCodeQuery(question) {
   return { success: true, type: "code_query", data: rawOutput, detail: detail || null, askFollowUp: true };
 }
 
-async function parseCodeRules(text) {
+async function parseCodeRules(text: string) {
   const ep = process.env.DEEPSEEK_API_ENDPOINT || "https://api.deepseek.com";
   const key = process.env.DEEPSEEK_API_KEY || "";
   const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
@@ -120,4 +120,5 @@ async function parseCodeRules(text) {
     return null;
   } catch (e) { return null; }
 }
+
 

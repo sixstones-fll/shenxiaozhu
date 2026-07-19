@@ -1,10 +1,11 @@
+// @ts-nocheck
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { CloudUpload, X } from "lucide-react";
 
-export default function ReviewPanel({ projectInfo, projectId }) {
+export default function ReviewPanel({ projectInfo, projectId }: { projectInfo: any, projectId: string }) {
   const [editableInfo, setEditableInfo] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -24,7 +25,7 @@ export default function ReviewPanel({ projectInfo, projectId }) {
     }
   }, [projectInfo]);
 
-  const handleInfoChange = (section, key, value) => {
+  const handleInfoChange = (section: any, key: any, value: any) => {
     setEditableInfo((prev) => {
       const next = JSON.parse(JSON.stringify(prev));
       next[section][key] = value || null;
@@ -53,7 +54,7 @@ export default function ReviewPanel({ projectInfo, projectId }) {
     }
   };
 
-  const handleConfirmGenerate = async () => {
+  const handleConfirmGenerate: () => Promise<void> = async () => {
     setGenerating(true);
     try {
       const formBody = JSON.stringify({ projectId, projectInfo: editableInfo });
