@@ -1,5 +1,5 @@
-﻿"use client";
-import { Suspense, useEffect } from "react";
+"use client";
+import React, { Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import ReviewPanel from "@/features/review/ReviewPanel";
 import KnowledgeQAPanel from "@/features/knowledge/KnowledgeQAPanel";
 import ReportPanel from "@/features/report/ReportPanel";
 import ComparePanel from "@/features/compare/ComparePanel";
+import IssueTrackingPanel from "@/features/issues/IssueTrackingPanel";
 
 const tabs = [
   { key: "knowledge", label: "知识问答" },
@@ -25,6 +26,7 @@ function ProjectsPageContent() {
   const { state: ctxState, setProjectPage } = useProjectContext();
   const urlProjectId = searchParams.get("id");
   const urlTab = searchParams.get("tab");
+  const [mounted, setMounted] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(() => urlProjectId || ctxState.projectId);
   const [activeTab, setActiveTab] = useState(urlTab || ctxState.activeTab || "review");
 
@@ -48,6 +50,7 @@ function ProjectsPageContent() {
       } catch (e) {}
     }
   }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   // 切换 tab 时同步 URL 和 context
   const handleTabChange = (key: string) => {
@@ -60,6 +63,7 @@ function ProjectsPageContent() {
     }
   };
 
+  if (!mounted) return <div className="h-full" />;
   if (!projectId) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 text-center">
@@ -95,12 +99,7 @@ function ProjectsPageContent() {
           {activeTab === "knowledge" && <KnowledgeQAPanel projectId={projectId} />}
           {activeTab === "report" && <ReportPanel projectId={projectId} />}
           {activeTab === "compare" && <ComparePanel projectId={projectId} />}
-          {activeTab === "issues" && (
-            <div className="text-center text-gray-500 p-8">
-              <p className="text-base font-medium mb-2">问题追踪</p>
-              <p className="text-sm">功能开发中...</p>
-            </div>
-          )}
+          {activeTab === "issues" && <IssueTrackingPanel projectId={projectId} />}
         </div>
       </div>
     </div>
