@@ -151,6 +151,56 @@ export default function ReviewPanel({ projectInfo, projectId }: { projectInfo: a
   const specialDesignsKeys = ["人防", "绿建", "消防", "无障碍", "装配式", "BIM", "抗震支架", "海绵城市"];
 
   return (
+    <>
+      {!confirmed ? (
+        <div className="space-y-6">
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">项目信息</h3>
+            <div className="grid grid-cols-4 gap-4">
+              {projectInfoKeys.map((key) => (
+                <div key={key}>
+                  <label className="text-xs text-gray-500 mb-1 block">{key}</label>
+                  <input
+                    type="text"
+                    value={editableInfo?.project_info?.[key] || ""}
+                    onChange={(e) => handleInfoChange("project_info", key, e.target.value)}
+                    placeholder="请输入"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">专项设计信息</h3>
+            <div className="grid grid-cols-4 gap-4">
+              {specialDesignsKeys.map((key) => (
+                <div key={key}>
+                  <label className="text-xs text-gray-500 mb-1 block">{key}</label>
+                  <input
+                    type="text"
+                    value={editableInfo?.special_designs?.[key] || ""}
+                    onChange={(e) => handleInfoChange("special_designs", key, e.target.value)}
+                    placeholder="请输入"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleConfirmGenerate}
+              disabled={generating}
+              className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generating ? "生成中..." : "确认生成"}
+            </button>
+          </div>
+        </div>
+      ) : (
     <div className="flex gap-6">
 
       {/* ?????? */}
@@ -244,6 +294,8 @@ export default function ReviewPanel({ projectInfo, projectId }: { projectInfo: a
           </>
         )}
       </div>
-    </div>
+
+      )}
+    </>
   );
 }

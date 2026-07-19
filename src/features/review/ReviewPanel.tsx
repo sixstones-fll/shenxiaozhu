@@ -157,6 +157,65 @@ export default function ReviewPanel({ projectId }) {
     return <div className="text-center py-20 text-gray-500">加载中...</div>;
   }
 
+
+  if (!hasFile && !editableInfo) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">上传设计说明文件</h3>
+          <div className="border-2 border-dashed border-gray-200 rounded-xl p-10 text-center">
+            <CloudUpload className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500 mb-4">点击或拖拽上传设计说明文件（支持 PDF、DOCX）</p>
+            <input ref={fileInputRef} type="file" accept=".pdf,.docx" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }} className="hidden" />
+            {!file ? (
+              <Button type="button" onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white">选择文件</Button>
+            ) : (
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-sm text-gray-600">{file.name}</span>
+                <Button type="button" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} variant="outline" size="sm"><X className="w-4 h-4" /></Button>
+              </div>
+            )}
+          </div>
+          <div className="mt-4">
+            <Button onClick={handleUploadFile} disabled={!file || uploading} className="bg-blue-600 hover:bg-blue-700 text-white">{uploading ? "上传中..." : "确认上传"}</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!confirmed) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">项目信息</h3>
+          <div className="grid grid-cols-4 gap-4">
+            {projectInfoKeys.map((key) => (
+              <div key={key}>
+                <label className="text-xs text-gray-500 mb-1 block">{key}</label>
+                <input type="text" value={editableInfo?.project_info?.[key] || ""} onChange={(e) => handleInfoChange("project_info", key, e.target.value)} placeholder="未提取到" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">专项设计信息</h3>
+          <div className="grid grid-cols-4 gap-4">
+            {specialDesignsKeys.map((key) => (
+              <div key={key}>
+                <label className="text-xs text-gray-500 mb-1 block">{key}</label>
+                <input type="text" value={editableInfo?.special_designs?.[key] || ""} onChange={(e) => handleInfoChange("special_designs", key, e.target.value)} placeholder="设计说明中未提及该专项" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Button onClick={handleConfirmGenerate} disabled={generating} className="bg-blue-600 hover:bg-blue-700 text-white">{generating ? "生成中..." : "确认生成"}</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-6">
       <div className="w-1/2 space-y-6">
@@ -212,7 +271,7 @@ export default function ReviewPanel({ projectId }) {
               <div className="space-y-3">
                 {(reviewResult.top_issues || reviewResult.topIssues || []).map((issue, idx) => (
                   <div key={idx} className="border border-gray-100 rounded-lg p-3 bg-gray-50">
-                                        <p className="text-sm font-medium text-gray-900">{issue.issue_summary || issue.summary || ""}</p>
+                    <p className="text-sm font-medium text-gray-900">{issue.issue_summary || issue.summary || ""}</p>
                     <p className="text-xs text-gray-500 mt-1">问题描述：{issue.sample_description || ""}</p>
                     {(issue.sample_project || "") && <p className="text-xs text-blue-500 mt-0.5">项目：{issue.sample_project || ""}</p>}
                     {(issue.sample_requirement || "") && <p className="text-xs text-gray-500 mt-0.5">规范要求：{issue.sample_requirement}</p>}
@@ -227,12 +286,3 @@ export default function ReviewPanel({ projectId }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
