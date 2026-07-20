@@ -3,11 +3,11 @@
 ## 项目概述
 - **产品**：审小助 — 建筑工程施工图审查助手 Demo（AIPM 面试用）
 - **工作目录**：D:\codex-project\shenxiaozu-demo
-- **端口**：http://localhost:3048
 - **技术栈**：Next.js 14 + Supabase + Coze + DeepSeek V4 Flash + Tailwind CSS + shadcn/ui
 - **GitHub**：github.com/sixstones-fll/shenxiaozhu（master 分支）
+- **Vercel**：https://sixstones-fll-shenxiaozhu.vercel.app
 
-## 当前状态（2026-07-17）
+## 当前状态（2026-07-20）
 
 ### ✅ 已完成
 
@@ -33,82 +33,72 @@
 - [x] 审图专业选择 + 确认生成 + Word 下载
 
 #### 5. 审图规划（MVP）
+- [x] 三态渲染：上传界面 → 四列布局 → 左右分栏
 - [x] 规范册检索（按专业 → 必选 → 按建筑类型 → 语义匹配）
 - [x] 高频问题检索（按专业 + 建筑类型聚类，频次>=3）
 - [x] 右侧栏预览 + Word 下载
 
-#### 6. 知识问答 — 规范查询（MVP）
+#### 6. 知识问答（MVP）
 - [x] Coze 工作流集成 + DeepSeek 降级备用
-- [x] 规范结构化解析（查看详情边栏）
-- [x] 意图识别路由
+- [x] 规范查询 + 专家匹配双链路
+- [x] 意图识别路由 + 追问交互
+- [x] 用户/AI 头像分列两侧（用户靠右，AI 靠左）
+- [x] 输入框固定在底部
 
-#### 7. 知识问答 — 专家匹配（MVP）
-- [x] DeepSeek 特征提取 + 历史问题库匹配 + 员工联系表查询
-- [x] 智能话术生成 + 追问查规范链路
-- [x] 专家结构化展示（微信图标 + 复制话术）
+#### 7. 报告生成（MVP）
+- [x] 逐条录入问题表格（序号/描述/图号/图名/条文/严重级/专业/截图/操作）
+- [x] 转写：输入问题描述 → 自动匹配条文、严重级、专业
+- [x] 导入/导出报告
+- [x] 添加问题回复 + 整改状态列
+- [x] 涉及专业多选（建筑/结构/水/暖/电）
 
-#### 8. 报告生成（MVP）— 新增
-- [x] 独立组件 src/features/report/ReportPanel.tsx
-- [x] 独立 API src/app/api/report/transcribe/route.ts
-- [x] 逐条录入问题表格（序号、问题描述、图号、图名、违反条文、严重级、涉及专业、截图、操作）
-- [x] 点击序号高亮 → 激活底部输入框
-- [x] DeepSeek 转写（输入问题描述 → 自动匹配条文、严重级、专业）
-- [x] 导出报告（docx / CSV 降级）
-- [x] sessionStorage 持久化
+#### 8. 报告对比（MVP）
+- [x] 双报告上传（新版/旧版）
+- [x] DeepSeek 对比分析（已整改/新增/待整改）
+- [x] 统计 + 结论 + 详情边栏
 
-#### 9. 知识问答体验修复
-- [x] 用户消息靠右（头像在右边缘、气泡在左）
-- [x] AI 消息靠左（头像在左边缘、气泡在右）
-- [x] 规范查询后追问"是否需要推荐相关专家？"
-- [x] 专家匹配后追问"是否需要查询相关规范？"
-- [x] 底栏固定在浏览器底部，不随滚动消失
+#### 9. 问题追踪（MVP）
+- [x] 整改状态统计（总问题/已整改/未整改）
+- [x] 风险等级统计（一类强条/二类强条/普通）
+- [x] 跨专业问题分布（建筑/结构/水/暖/电）
+- [x] 各专业负责人联系方式（假数据）
+- [x] 点击卡片弹出详情边栏
 
-#### 10. 重构与修复
-- [x] 拆分 expert-match 为独立 lib 模块
-- [x] 标签隔离：ReviewPanel / KnowledgeQAPanel / ReportPanel 各自独立
-- [x] page.tsx 瘦身为标签切换壳子
+#### 10. 项目管理（假数据）
+- [x] 项目列表 + 搜索 + A-Z 字母筛选 + 建筑类型筛选
+- [x] 四列表格：项目名称/建筑类型/创建时间/操作
+- [x] 新建项目自动同步到项目管理列表
 
-### 🔄 进行中
-- [ ] 知识库上传管理（管理员功能，MVP）
-- [ ] Vercel 部署
-- [ ] 剩余占位标签（报告对比、问题追踪）
+#### 11. 知识库管理
+- [x] 三步向导：导入数据 → 数据配置 → 完成
+- [x] 三种分段方式：自动分段/自定义分段/按等级分段
+- [x] 查看规范库：搜索 + A-Z 筛选 + 查看详情按钮
+- [x] 查看问题库：搜索 + A-Z 筛选 + 详情边栏（假数据）
 
-### 📵 待办
+#### 12. Vercel 部署
+- [x] GitHub 仓库连接 Vercel
+- [x] 环境变量配置
+- [x] 修复 tailwind.config.ts content 路径（添加 ./src/features）
+- [x] 修复旧 ReviewPanel.tsx JSX 语法错误
+- [x] next.config 添加 typescript.ignoreBuildErrors
 
-#### 短期
-1. 知识库管理页面（管理员上传文件）
-2. 项目管理页面（列表、编辑、删除）
+### 文件架构
 
-#### 长期
-1. 报告对比、问题追踪占位页
-2. Vercel 部署配置
-3. 图片识别功能
-
-## 文件架构
 | 路径 | 说明 |
 |------|------|
-| src/features/review/ReviewPanel.tsx | 审图规划（独立） |
-| src/features/knowledge/KnowledgeQAPanel.tsx | 知识问答（独立） |
-| src/features/report/ReportPanel.tsx | 报告生成（独立） |
-| src/app/api/coze/chat/route.ts | 统一对话 API |
-| src/app/api/report/transcribe/route.ts | 报告转写 API |
-| src/app/api/expert-match/route.ts | 专家匹配 API |
+| src/features/review/ReviewPanel.tsx | 审图规划 |
+| src/features/knowledge/KnowledgeQAPanel.tsx | 知识问答 |
+| src/features/report/ReportPanel.tsx | 报告生成 |
+| src/features/compare/ComparePanel.tsx | 报告对比 |
+| src/features/issues/IssueTrackingPanel.tsx | 问题追踪 |
+| src/features/project-manage/ProjectManagePanel.tsx | 项目管理 |
+| src/features/knowledge-base/KnowledgeBasePanel.tsx | 知识库管理 |
+| src/features/knowledge-base/UploadView.tsx | 知识库上传 |
 | src/app/(dashboard)/projects/page.tsx | 标签切换壳子 |
 | src/lib/expert-match.ts | 专家匹配核心逻辑 |
 | data/ | Excel 数据文件 |
 
-## 已知问题
+### 已知问题
 1. Coze 额度不足时规范查询降级到 DeepSeek，格式不一致
-2. 部分文件权限需要管理员身份运行
-3. Build Error 偶发（代码编辑时 JSX 闭合问题）
-## 当前状态（2026-07-19）
-
-#### 10. 报告生成标签 — 功能扩展
-- [x] 修复表头列对齐（添加\"问题回复\"和\"整改状态\"列）
-- [x] 涉及专业改为多选（建筑/结构/水/暖/电），显示短名
-- [x] 添加问题回复输入列 + 整改状态下拉列
-- [x] 添加导入报告功能（上传docx自动解析）
-- [x] 导出Word/CSV包含新增列
-- [x] 底部输入框支持回复转写模式
-- [x] IssuesRow接口更新：specialty→string[]，新增reply/status
-- [x] sessionStorage数据迁移兼容
+2. Vercel 生产构建需确保环境变量全部正确配置
+3. 部分类型错误被 next.config 的 ignoreBuildErrors 忽略
