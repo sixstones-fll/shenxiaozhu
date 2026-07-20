@@ -107,9 +107,9 @@ export default function KnowledgeQAPanel({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col" style={{height: "calc(100vh - 220px)"}}>
-      <div className="flex-1 overflow-y-auto space-y-4 pt-4 pb-4 px-6">
+      <div className={"flex-1 px-6 " + (messages.length === 0 ? "flex items-center justify-center" : "overflow-y-auto space-y-4 pt-4 pb-4")}>
         {messages.length === 0 && (
-          <div className="text-center text-gray-400 py-12">
+          <div className="text-center text-gray-400">
             <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <p className="text-sm">输入问题开始查询，支持规范查询和专家匹配</p>
           </div>
