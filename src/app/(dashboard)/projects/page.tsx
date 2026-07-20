@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -79,8 +79,8 @@ function ProjectsPageContent() {
   }
 
   return (
-    <div className="space-y-6 flex flex-col h-full">
-      <div className="border-b border-gray-200">
+    <div className="flex flex-col h-full gap-6">
+      <div className="border-b border-gray-200 shrink-0">
         <nav className="flex gap-8">
           {tabs.map((tab) => (
             <button
@@ -93,7 +93,7 @@ function ProjectsPageContent() {
           ))}
         </nav>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 flex-1 flex flex-col min-h-0">
+      <div className="bg-white rounded-xl border border-gray-200 flex-1 flex flex-col min-h-0 overflow-y-auto">
         <div key={activeTab} className="h-full">
           {activeTab === "review" && <ReviewPanel projectId={projectId} />}
           {activeTab === "knowledge" && <KnowledgeQAPanel projectId={projectId} />}
